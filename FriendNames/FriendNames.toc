@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: FriendNames
+## Notes: Show your own nicknames for friends on the default raid/party frames.
+## Author: You
+## Version: 0.1
+## SavedVariables: FriendNamesDB
+
+FriendNames.lua
