@@ -7,7 +7,8 @@ local ADDON = ...
 local PREFIX = "|cff33ccff[FriendNames]|r "
 
 local db
-local guidCache = {}   -- guid -> nickname or false
+local guidCache = {}   -- guid -> nickname (found only)
+local missCache = {}   -- guid -> time of last failed lookup (retried after 10s)
 local nameToGuid = {}  -- "Name-Realm" -> guid, learned from chat events
 
 local function Print(msg) print(PREFIX .. msg) end
@@ -38,7 +39,8 @@ end
 
 local function Resolve(guid, key)
     local g = (guid and not IsSecret(guid)) and guid or nil
-    if g and guidCache[g] ~= nil then return guidCache[g] or nil end
+    if g and guidCache[g] then return guidCache[g] end
+    if g and missCache[g] and GetTime() - missCache[g] < 10 then return nil end
 
     local nick
     if g and C_BattleNet and C_BattleNet.GetAccountInfoByGUID then
@@ -51,7 +53,9 @@ local function Resolve(guid, key)
         nick = Sanitize(nick)
         if nick == "" then nick = nil end
     end
-    if g then guidCache[g] = nick or false end
+    if g then
+        if nick then guidCache[g] = nick else missCache[g] = GetTime() end
+    end
     return nick
 end
 
@@ -190,6 +194,7 @@ end
 
 local function RefreshAll()
     wipe(guidCache)
+    wipe(missCache)
     if hooked then
         local f = EnumerateFrames()
         while f do
@@ -212,6 +217,8 @@ ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("GROUP_ROSTER_UPDATE")
 ev:RegisterEvent("BN_FRIEND_INFO_CHANGED")
 ev:RegisterEvent("GUILD_ROSTER_UPDATE")
+ev:RegisterEvent("PLAYER_ENTERING_WORLD")
+ev:RegisterEvent("BN_FRIEND_LIST_SIZE_CHANGED")
 ev:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         FriendNamesDB = FriendNamesDB or {}
